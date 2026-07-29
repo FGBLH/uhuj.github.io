@@ -1,0 +1,2120 @@
+<!doctype html>
+
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>JavDB</title>
+  <script>
+    window.WEBHOME_PAGE_OPENED_AT = Date.now();
+    if (window.fongmiBridge) document.documentElement.classList.add("fm-native");
+    (function () {
+      var protoList = [
+        window.Element && Element.prototype,
+        window.Document && Document.prototype,
+        window.DocumentFragment && DocumentFragment.prototype
+      ];
+      for (var p = 0; p < protoList.length; p++) {
+        var proto = protoList[p];
+        if (!proto) continue;
+        if (proto.replaceChildren) continue;
+        proto.replaceChildren = function () {
+          while (this.firstChild) this.removeChild(this.firstChild);
+          for (var i = 0; i < arguments.length; i++) {
+            var child = arguments[i];
+            this.appendChild(child && child.nodeType ? child : document.createTextNode(String(child)));
+          }
+        };
+      }
+      if (window.Element && !Element.prototype.matches) {
+        Element.prototype.matches = Element.prototype.msMatchesSelector || Element.prototype.webkitMatchesSelector;
+      }
+      if (window.Element && !Element.prototype.closest) {
+        Element.prototype.closest = function (selector) {
+          var el = this;
+          while (el && el.nodeType === 1) {
+            if (el.matches && el.matches(selector)) return el;
+            el = el.parentElement || el.parentNode;
+          }
+          return null;
+        };
+      }
+      if (!Object.values) {
+        Object.values = function (obj) {
+          return Object.keys(obj || {}).map(function (key) { return obj[key]; });
+        };
+      }
+      if (!Object.entries) {
+        Object.entries = function (obj) {
+          return Object.keys(obj || {}).map(function (key) { return [key, obj[key]]; });
+        };
+      }
+      if (!Array.from) {
+        Array.from = function (value, mapFn, thisArg) {
+          var result = [];
+          if (value == null) return result;
+          var iterator = typeof Symbol !== "undefined" && value[Symbol.iterator];
+          var i = 0;
+          if (typeof iterator === "function") {
+            var step;
+            var iter = iterator.call(value);
+            while (!(step = iter.next()).done) {
+              result.push(mapFn ? mapFn.call(thisArg, step.value, i++) : step.value);
+            }
+            return result;
+          }
+          var length = Number(value.length) || 0;
+          for (; i < length; i++) {
+            result.push(mapFn ? mapFn.call(thisArg, value[i], i) : value[i]);
+          }
+          return result;
+        };
+      }
+      if (window.NodeList && !NodeList.prototype.forEach) {
+        NodeList.prototype.forEach = Array.prototype.forEach;
+      }
+      if (window.HTMLCollection && !HTMLCollection.prototype.forEach) {
+        HTMLCollection.prototype.forEach = Array.prototype.forEach;
+      }
+      if (!Array.prototype.includes) {
+        Array.prototype.includes = function (value, fromIndex) {
+          return this.indexOf(value, fromIndex || 0) !== -1;
+        };
+      }
+      if (!Array.prototype.flat) {
+        Array.prototype.flat = function (depth) {
+          var maxDepth = depth == null ? 1 : Number(depth) || 0;
+          var flatten = function (items, level) {
+            var acc = [];
+            for (var i = 0; i < items.length; i++) {
+              var item = items[i];
+              if (Array.isArray(item) && level < maxDepth) {
+                var nested = flatten(item, level + 1);
+                for (var n = 0; n < nested.length; n++) acc.push(nested[n]);
+              } else {
+                acc.push(item);
+              }
+            }
+            return acc;
+          };
+          return flatten(this, 0);
+        };
+      }
+      if (!Array.prototype.flatMap) {
+        Array.prototype.flatMap = function (callback, thisArg) {
+          return this.map(callback, thisArg).flat();
+        };
+      }
+      if (!String.prototype.includes) {
+        String.prototype.includes = function (search, start) {
+          return this.indexOf(search, start || 0) !== -1;
+        };
+      }
+      if (!String.prototype.startsWith) {
+        String.prototype.startsWith = function (search, start) {
+          return this.substr(start || 0, search.length) === search;
+        };
+      }
+      if (!String.prototype.endsWith) {
+        String.prototype.endsWith = function (search, length) {
+          var value = String(this);
+          var end = length == null ? value.length : Math.min(Number(length) || 0, value.length);
+          return value.substring(end - search.length, end) === search;
+        };
+      }
+      if (window.Promise && !Promise.prototype.finally) {
+        Promise.prototype.finally = function (callback) {
+          var P = this.constructor;
+          return this.then(function (value) {
+            return P.resolve(callback()).then(function () { return value; });
+          }, function (reason) {
+            return P.resolve(callback()).then(function () { throw reason; });
+          });
+        };
+      }
+      var detectLayoutGap = function () {
+        if (!document || !document.body || !document.documentElement) return;
+        var root = document.documentElement;
+        var flex = document.createElement("div");
+        var grid = document.createElement("div");
+        var makeChild = function () {
+          var child = document.createElement("div");
+          child.style.height = "1px";
+          child.style.width = "1px";
+          return child;
+        };
+        try {
+          flex.style.cssText = "position:absolute;left:-9999px;top:-9999px;display:flex;flex-direction:column;gap:1px;visibility:hidden;";
+          flex.appendChild(makeChild());
+          flex.appendChild(makeChild());
+          grid.style.cssText = "position:absolute;left:-9999px;top:-9999px;display:grid;grid-template-columns:1px;gap:1px;visibility:hidden;";
+          grid.appendChild(makeChild());
+          grid.appendChild(makeChild());
+          document.body.appendChild(flex);
+          document.body.appendChild(grid);
+          if (flex.scrollHeight < 3 || grid.scrollHeight < 3) root.classList.add("no-layout-gap");
+        } catch (e) {
+          root.classList.add("no-layout-gap");
+        }
+        try {
+          if (flex.parentNode) flex.parentNode.removeChild(flex);
+          if (grid.parentNode) grid.parentNode.removeChild(grid);
+        } catch (e) {}
+      };
+      var detectCssFunctions = function () {
+        if (!document || !document.documentElement || !window.CSS || !CSS.supports) {
+          document.documentElement.classList.add("no-css-functions");
+          return;
+        }
+        try {
+          if (!CSS.supports("width", "min(10px, 20px)") || !CSS.supports("width", "clamp(10px, 2vw, 20px)")) {
+            document.documentElement.classList.add("no-css-functions");
+          }
+        } catch (e) {
+          document.documentElement.classList.add("no-css-functions");
+        }
+      };
+      var detectAspectRatio = function () {
+        if (!document || !document.documentElement) return;
+        var root = document.documentElement;
+        if (!window.CSS || !CSS.supports) {
+          root.classList.add("no-aspect-ratio");
+          return;
+        }
+        try {
+          if (!CSS.supports("aspect-ratio", "2 / 3")) {
+            root.classList.add("no-aspect-ratio");
+            return;
+          }
+        } catch (e) {
+          root.classList.add("no-aspect-ratio");
+          return;
+        }
+        var measure = function () {
+          if (!document.body) return;
+          var box = document.createElement("div");
+          try {
+            box.style.cssText = "position:absolute;left:-9999px;top:-9999px;width:20px;aspect-ratio:2/1;visibility:hidden;";
+            document.body.appendChild(box);
+            var height = box.getBoundingClientRect ? box.getBoundingClientRect().height : box.offsetHeight;
+            if (height < 8 || height > 12) root.classList.add("no-aspect-ratio");
+          } catch (e) {
+            root.classList.add("no-aspect-ratio");
+          }
+          try { if (box.parentNode) box.parentNode.removeChild(box); } catch (e) {}
+        };
+        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", measure);
+        else measure();
+      };
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", detectLayoutGap);
+      else detectLayoutGap();
+      detectCssFunctions();
+      detectAspectRatio();
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel-rgb: 26, 26, 46;
+      --panel: rgba(var(--panel-rgb), .78);
+      --panel-soft: rgba(var(--panel-rgb), .58);
+      --panel-strong: rgba(var(--panel-rgb), .9);
+      --text: #f0f0f5;
+      --muted: rgba(210, 210, 230, .72);
+      --line: rgba(255, 255, 255, .15);
+      --line-strong: rgba(255, 255, 255, .28);
+      --control: rgba(40, 40, 65, .55);
+      --control-active: rgba(60, 60, 95, .65);
+      --accent: #e85d75;
+      --accent-2: #ff6b6b;
+      --focus-line: rgba(232, 93, 117, .8);
+      --focus-glow: rgba(232, 93, 117, .25);
+      --ok: #7ecb8a;
+      --magnet-color: #5dade2;
+      --shadow: 0 12px 36px rgba(0, 0, 0, .3);
+      --radius: 8px;
+      --fm-web-height: 100vh;
+      --fm-safe-top: 0px;
+      --fm-safe-right: 0px;
+      --fm-safe-bottom: 20px;
+      --fm-safe-left: 0px;
+      --safe-top: max(var(--fm-safe-top, 0px), env(safe-area-inset-top, 0px));
+      --safe-right: max(var(--fm-safe-right, 0px), env(safe-area-inset-right, 0px));
+      --safe-bottom: max(var(--fm-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
+      --safe-left: max(var(--fm-safe-left, 0px), env(safe-area-inset-left, 0px));
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    @supports (height: 100dvh) {
+      :root { --fm-web-height: 100dvh; }
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      max-width: 100%;
+      min-height: var(--fm-web-height);
+      background: transparent;
+      color: var(--text);
+      overflow-x: hidden;
+    }
+    html:not(.fm-native),
+    html:not(.fm-native) body {
+      background-color: #1a1a2e;
+    }
+    html.fm-native,
+    html.fm-native body {
+      background: transparent;
+    }
+    body {
+      overflow-x: hidden;
+      letter-spacing: 0;
+      position: relative;
+      overscroll-behavior-x: none;
+    }
+    button, input, select {
+      font: inherit;
+      color: inherit;
+    }
+    button {
+      border: 0;
+      cursor: pointer;
+      touch-action: manipulation;
+      margin: 0;
+      padding: 0;
+      appearance: none;
+      -webkit-appearance: none;
+      background: transparent;
+      text-align: inherit;
+    }
+    img {
+      display: block;
+      max-width: 100%;
+      background: transparent;
+    }
+    .app {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      min-height: var(--fm-web-height);
+      overflow-x: hidden;
+      padding: max(12px, var(--safe-top)) 12px calc(18px + var(--safe-bottom));
+      background: transparent;
+    }
+    body.detail-active .app {
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .search-bar {
+      width: 100%;
+      min-width: 0;
+      display: flex;
+      gap: 8px;
+      margin: 4px 0 10px;
+      position: relative;
+      z-index: 20;
+    }
+    html.no-layout-gap .search-bar > * { margin-right: 8px; }
+    html.no-layout-gap .search-bar > *:last-child { margin-right: 0; }
+    .search-bar .field {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .search-bar .icon-btn {
+      flex: 0 0 auto;
+      width: 44px;
+      height: 44px;
+    }
+    .field {
+      width: 100%;
+      min-height: 44px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--control);
+      color: var(--text);
+      padding: 0 12px;
+      outline: none;
+      backdrop-filter: blur(10px) saturate(1.05);
+    }
+    .field::placeholder { color: rgba(210, 210, 230, .45); }
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      background: var(--control);
+      border: 1px solid var(--line);
+      color: var(--text);
+      backdrop-filter: blur(10px) saturate(1.05);
+    }
+    .icon-btn svg {
+      width: 19px;
+      height: 19px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .chips {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding: 2px 0 4px;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+    }
+    .chips::-webkit-scrollbar { display: none; }
+    html.no-layout-gap .chips > * { margin-right: 7px; }
+    html.no-layout-gap .chips > *:last-child { margin-right: 0; }
+    .chip {
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: var(--control);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 12px;
+      backdrop-filter: blur(10px) saturate(1.05);
+    }
+    .chip.active {
+      background: var(--accent);
+      border-color: var(--accent-2);
+      color: #fff;
+    }
+    .chip:focus {
+      outline: 2px solid var(--focus-line);
+      outline-offset: 2px;
+    }
+    .section {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    html.no-layout-gap .section-head > * { margin-right: 10px; }
+    html.no-layout-gap .section-head > *:last-child { margin-right: 0; }
+    .section-head h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+    .section-head span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    /* ===== 视频卡片：单列布局 ===== */
+    .media-grid {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    html.no-layout-gap .media-grid > * { margin-bottom: 8px; }
+
+    .card {
+      width: 100%;
+      max-width: none;
+      position: relative;
+      border-radius: var(--radius);
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      overflow: hidden;
+      padding: 0;
+      text-align: left;
+      color: var(--text);
+      backdrop-filter: blur(10px) saturate(1.05);
+    }
+    .card:focus {
+      outline: 2px solid var(--focus-line);
+      outline-offset: -2px;
+    }
+
+    .card .poster {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: #0d0d1a;
+    }
+
+    html.no-aspect-ratio .card .poster {
+      height: auto;
+      padding-top: 0;
+    }
+    html.no-aspect-ratio .card .poster-wrap {
+      position: relative;
+      overflow: hidden;
+    }
+    html.no-aspect-ratio .card .poster-wrap img {
+      position: static;
+      width: 100%;
+      height: auto;
+    }
+
+    .card-body {
+      padding: 8px 10px;
+      background: var(--panel);
+      border-top: 1px solid var(--line);
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 760;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    html.no-layout-gap .card-meta > * { margin-right: 4px; }
+    html.no-layout-gap .card-meta > *:last-child { margin-right: 0; }
+    .card-meta:empty { display: none; }
+    .rating-badge {
+      position: absolute;
+      right: 6px;
+      top: 6px;
+      min-width: 30px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(0,0,0,.5);
+      border: 1px solid rgba(255,255,255,.18);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      backdrop-filter: blur(6px);
+    }
+    .magnet-badge {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      min-height: 20px;
+      padding: 0 6px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      background: rgba(93,173,226,.35);
+      border: 1px solid rgba(93,173,226,.5);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      backdrop-filter: blur(6px);
+    }
+    .empty {
+      min-height: 80px;
+      display: grid;
+      place-items: center;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      background: rgba(255,255,255,.03);
+      font-size: 13px;
+      text-align: center;
+    }
+    .loading {
+      display: grid;
+      place-items: center;
+      padding: 30px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .pagination {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+      padding: 16px 0;
+    }
+    html.no-layout-gap .pagination > * { margin-right: 8px; }
+    html.no-layout-gap .pagination > *:last-child { margin-right: 0; }
+    .btn {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0 14px;
+      border-radius: var(--radius);
+      background: var(--control);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-weight: 760;
+      font-size: 13px;
+      text-decoration: none;
+      backdrop-filter: blur(10px) saturate(1.05);
+    }
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent-2);
+      color: #fff;
+    }
+    .btn.small {
+      min-height: 30px;
+      padding: 0 10px;
+      font-size: 11px;
+    }
+    .btn:focus {
+      outline: 2px solid var(--focus-line);
+      outline-offset: 1px;
+    }
+    .btn:disabled {
+      opacity: .5;
+    }
+    .sheet {
+      display: none;
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      z-index: 60;
+      width: 100%;
+      min-height: var(--fm-web-height);
+      background: rgba(10,10,25,.94);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: max(14px, var(--safe-top)) 14px calc(22px + var(--safe-bottom));
+      backdrop-filter: blur(14px) saturate(1.08);
+    }
+    .sheet.active { display: block; }
+    .detail-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 0 12px;
+      border-radius: var(--radius);
+      background: var(--control);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 760;
+      margin-bottom: 12px;
+      backdrop-filter: blur(10px);
+    }
+    .detail-back:focus {
+      outline: 2px solid var(--focus-line);
+      outline-offset: 1px;
+    }
+    .detail-hero {
+      width: 100%;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    html.no-layout-gap .detail-hero > * { margin-right: 12px; }
+    html.no-layout-gap .detail-hero > *:last-child { margin-right: 0; }
+    .detail-poster {
+      flex: 0 0 120px;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .detail-poster img {
+      width: 100%;
+      aspect-ratio: 2/3;
+      object-fit: cover;
+    }
+    html.no-aspect-ratio .detail-poster img {
+      height: auto;
+      min-height: 180px;
+    }
+    .detail-info {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .detail-info h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      line-height: 1.3;
+    }
+    .detail-info .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    html.no-layout-gap .detail-info .meta-row > * { margin-right: 6px; }
+    html.no-layout-gap .detail-info .meta-row > *:last-child { margin-right: 0; }
+    .detail-info .meta-row span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .magnet-list {
+      width: 100%;
+    }
+    .magnet-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      margin-bottom: 8px;
+      backdrop-filter: blur(8px);
+    }
+    html.no-layout-gap .magnet-item > * { margin-right: 8px; }
+    html.no-layout-gap .magnet-item > *:last-child { margin-right: 0; }
+    .magnet-info {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .magnet-name {
+      font-size: 12px;
+      font-weight: 760;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+    .magnet-meta {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .magnet-play {
+      flex: 0 0 auto;
+      min-height: 32px;
+      padding: 0 12px;
+      border-radius: var(--radius);
+      background: var(--magnet-color);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .magnet-play:focus {
+      outline: 2px solid #fff;
+      outline-offset: 1px;
+    }
+    .status-bar {
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 6px 0;
+    }
+    html.tv-mode .media-grid {
+      overflow: visible;
+      padding: 8px 4px 12px;
+    }
+    html.tv-mode .card {
+      transition: transform .1s ease;
+    }
+    html.tv-mode .card:focus {
+      transform: translateY(-2px);
+    }
+
+    /* ===== Cookie 弹窗样式 ===== */
+    .cookie-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(4px);
+    }
+    .cookie-overlay.active { display: flex; }
+    .cookie-modal {
+      background: #2a2a4a;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    .cookie-modal h3 {
+      margin: 0 0 12px;
+      color: #fff;
+    }
+    .cookie-modal textarea {
+      width: 100%;
+      min-height: 100px;
+      background: #1a1a2e;
+      color: #f0f0f5;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      resize: vertical;
+      font-family: monospace;
+    }
+    .cookie-modal .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      justify-content: flex-end;
+    }
+    .cookie-modal .btn-row button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .cookie-modal .btn-save {
+      background: var(--accent);
+      color: #fff;
+    }
+    .cookie-modal .btn-clear {
+      background: var(--control);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+    .cookie-modal .btn-close {
+      background: transparent;
+      color: var(--muted);
+    }
+    .cookie-status {
+      display: inline-block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 8px;
+    }
+    .cookie-status.active {
+      color: var(--ok);
+    }
+
+    /* ===== 演员网格样式 ===== */
+    .actor-grid {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 12px 10px;
+      padding: 8px 0;
+    }
+    .actor-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: var(--text);
+      padding: 4px;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+    .actor-card:hover, .actor-card:focus {
+      transform: scale(1.06);
+      opacity: .9;
+    }
+    .actor-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--line);
+      background: #1a1a2e;
+    }
+    .actor-name {
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: center;
+      word-break: break-all;
+      max-width: 80px;
+    }
+    .actor-back-btn-wrap {
+      margin-bottom: 8px;
+    }
+    .actor-search-wrap {
+      display: none;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .actor-search-wrap.active {
+      display: flex;
+      gap: 8px;
+    }
+    .actor-search-wrap .field {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .actor-search-wrap .icon-btn {
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="search-bar">
+      <input class="field" id="searchInput" type="text" placeholder="搜索番号 / 关键词…" autocomplete="off">
+      <button class="icon-btn" id="searchBtn" aria-label="搜索">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="icon-btn" id="cookieTrigger" aria-label="设置Cookie" style="width:42px;height:42px;font-size:18px;">🔑</button>
+    </div>
+    <div class="chips" id="categoryChips"></div>
+    <div class="chips" id="filterChips" style="margin-top:4px;"></div>
+    <div class="status-bar" id="statusBar">
+      加载中…
+      <span class="cookie-status" id="cookieStatus"></span>
+    </div>
+    <div class="section" id="contentSection">
+      <div class="section-head">
+        <h3 id="sectionTitle">热播</h3>
+        <span id="sectionCount"></span>
+      </div>
+      <div id="actorSearchWrap" class="actor-search-wrap">
+        <input class="field" id="actorSearchInput" type="text" placeholder="输入女优名字搜索…" autocomplete="off" style="background:rgba(40,40,65,.7);">
+        <button class="icon-btn" id="actorSearchBtn" aria-label="搜索女优" style="width:42px;height:42px;">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+      <div id="actorBackWrap" class="actor-back-btn-wrap" style="display:none;"></div>
+      <div class="media-grid" id="videoGrid"></div>
+      <div class="loading" id="loadingMore" style="display:none;">加载更多…</div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+  <div class="sheet" id="detailSheet">
+    <button class="detail-back" id="detailBack">← 返回</button>
+    <div id="detailContent"></div>
+  </div>
+
+  <div class="cookie-overlay" id="cookieOverlay">
+    <div class="cookie-modal">
+      <h3>🔑 设置登录 Cookie</h3>
+      <p style="color:var(--muted);font-size:12px;margin:0 0 8px;">
+        请从浏览器开发者工具中复制 javdb574.com 的完整 Cookie 字符串（例如：<code>key1=value1; key2=value2</code>）
+      </p>
+      <textarea id="cookieInput" placeholder="粘贴 Cookie 字符串…"></textarea>
+      <div class="btn-row">
+        <button class="btn-close" id="cookieClose">取消</button>
+        <button class="btn-clear" id="cookieClear">清除</button>
+        <button class="btn-save" id="cookieSave">保存</button>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">
+        <span>保存后会自动应用到后续请求（仅限 App 环境生效）</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+      var SITE_BASE = "https://javdb574.com";
+      var CONFIG = {
+        cachePrefix: "javdb_hm_",
+        cacheTtl: 1800000,
+        pageSize: 21
+      };
+      var state = {
+        sdkReady: false,
+        isApp: false,
+        isTV: false,
+        currentCategory: "hot",
+        currentFilter: "",
+        currentPage: 1,
+        currentQuery: "",
+        isLoading: false,
+        detailVid: null,
+        routeToken: 0,
+        viewMode: "normal",
+        currentActorSub: "recommend",
+        currentActor: null,
+        actorPage: 1
+      };
+
+      var ACTOR_SUB_MAP = {
+        "recommend": "/actors",
+        "censored": "/actors/censored",
+        "uncensored": "/actors/uncensored",
+        "western": "/actors/western"
+      };
+      var ACTOR_SUB_LABELS = [
+        { id: "recommend", label: "推荐" },
+        { id: "censored", label: "有码" },
+        { id: "uncensored", label: "无码" },
+        { id: "western", label: "欧美" }
+      ];
+
+      var manualCookie = localStorage.getItem('javdb_manual_cookie') || '';
+      var cookieStatusEl = document.getElementById('cookieStatus');
+
+      function updateCookieStatus() {
+        if (manualCookie) {
+          cookieStatusEl.textContent = '✅ 已设置 Cookie';
+          cookieStatusEl.className = 'cookie-status active';
+        } else {
+          cookieStatusEl.textContent = '';
+          cookieStatusEl.className = 'cookie-status';
+        }
+      }
+      updateCookieStatus();
+
+      function setManualCookie(cookieStr) {
+        manualCookie = cookieStr || '';
+        if (manualCookie) {
+          localStorage.setItem('javdb_manual_cookie', manualCookie);
+        } else {
+          localStorage.removeItem('javdb_manual_cookie');
+        }
+        updateCookieStatus();
+        log('Manual cookie updated');
+      }
+
+      var overlay, input, saveBtn, clearBtn, closeBtn, triggerBtn;
+      function openCookieModal() {
+        if (input) input.value = manualCookie;
+        if (overlay) overlay.classList.add('active');
+      }
+      function closeCookieModal() {
+        if (overlay) overlay.classList.remove('active');
+      }
+
+      var CATEGORIES = [
+        { id: "hot", label: "热播" },
+        { id: "censored", label: "有码" },
+        { id: "uncensored", label: "无码" },
+        { id: "western", label: "欧美" },
+        { id: "fc2", label: "FC2" },
+        { id: "anime", label: "动漫" },
+        { id: "actors", label: "🎬 女优" }
+      ];
+      var FILTERS = [
+        { id: "", label: "全部" },
+        { id: "playable", label: "可播放" },
+        { id: "download", label: "含磁链" },
+        { id: "subtitle", label: "含字幕" }
+      ];
+      var CATEGORY_URL_MAP = {
+        "hot": "/",
+        "censored": "/censored",
+        "uncensored": "/uncensored",
+        "western": "/western",
+        "fc2": "/fc2",
+        "anime": "/anime",
+        "actors": "/actors"
+      };
+      var FILTER_PARAM_MAP = {
+        "playable": "f=playable",
+        "download": "f=download",
+        "subtitle": "f=subtitle"
+      };
+
+      function log() {
+        if (window.fm && fm.log) {
+          var args = Array.prototype.slice.call(arguments);
+          fm.log("[javdb-home] " + args.join(" "));
+        }
+        console.log.apply(console, ["[javdb-home]"].concat(Array.prototype.slice.call(arguments)));
+      }
+      function toast(msg) {
+        if (window.fm && fm.toast) {
+          fm.toast(msg);
+        }
+        log("[toast]", msg);
+      }
+      function sdk() {
+        if (window.fm) return window.fm;
+        return null;
+      }
+      function waitForSdk(timeout) {
+        return new Promise(function (resolve) {
+          if (window.fm) { resolve(true); return; }
+          if (!window.fongmiBridge) { resolve(false); return; }
+          var done = false;
+          var finish = function () {
+            if (done) return;
+            done = true;
+            window.removeEventListener("fmsdk", finish);
+            resolve(!!window.fm);
+          };
+          window.addEventListener("fmsdk", finish);
+          setTimeout(finish, timeout == null ? 2000 : timeout);
+        });
+      }
+      function cleanText(raw) {
+        if (!raw) return "";
+        return raw.replace(/[\s\u00A0]+/g, " ").replace(/^\s+|\s+$/g, "");
+      }
+      function extractVidFromUrl(url) {
+        var m = url.match(/\/v\/([^\/?#]+)/);
+        return m ? m[1] : null;
+      }
+      function absoluteUrl(relative) {
+        if (!relative) return "";
+        if (relative.startsWith("http")) return relative;
+        if (relative.startsWith("//")) return "https:" + relative;
+        return SITE_BASE + (relative.startsWith("/") ? "" : "/") + relative;
+      }
+      function parseHtml(html) {
+        if (!html || typeof html !== "string") return null;
+        try {
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          return doc;
+        } catch (e) {
+          log("parseHtml error", e && e.message || e);
+          return null;
+        }
+      }
+
+      function parseVideoCards(doc) {
+        if (!doc) return [];
+        var items = [];
+        var gridItems = doc.querySelectorAll(".grid-item, .movie-list .item, .videos .item");
+        if (gridItems.length === 0) {
+          gridItems = doc.querySelectorAll("a[href*='/v/']");
+        }
+        var seen = {};
+        for (var i = 0; i < gridItems.length; i++) {
+          var el = gridItems[i];
+          var linkEl = el.tagName === "A" ? el : el.querySelector("a[href*='/v/']");
+          if (!linkEl) continue;
+          var href = linkEl.getAttribute("href");
+          var vid = extractVidFromUrl(href);
+          if (!vid) continue;
+          if (seen[vid]) continue;
+          seen[vid] = true;
+          var imgEl = el.querySelector("img");
+          var coverUrl = imgEl ? absoluteUrl(imgEl.getAttribute("src") || imgEl.getAttribute("data-src") || "") : "";
+          var titleEl = el.querySelector(".video-title, .uid, .item-title, strong");
+          var title = cleanText(titleEl ? titleEl.textContent : vid);
+          var scoreEl = el.querySelector(".score, .meta .score, .value");
+          var score = "";
+          if (scoreEl) {
+            score = cleanText(scoreEl.textContent).replace(/分.*$/, "");
+          }
+          var dateEl = el.querySelector(".meta, .date, time");
+          var date = dateEl ? cleanText(dateEl.textContent) : "";
+          var hasMagnet = false;
+          var hasSubtitle = false;
+          var tags = el.querySelectorAll(".tag, .label");
+          for (var t = 0; t < tags.length; t++) {
+            var tagText = cleanText(tags[t].textContent);
+            if (tagText.indexOf("磁") !== -1) hasMagnet = true;
+            if (tagText.indexOf("字") !== -1) hasSubtitle = true;
+          }
+          var textAll = el.textContent || "";
+          if (textAll.indexOf("含磁") !== -1 || textAll.indexOf("磁鏈") !== -1) hasMagnet = true;
+          if (textAll.indexOf("字幕") !== -1 || textAll.indexOf("中字") !== -1) hasSubtitle = true;
+          items.push({
+            vid: vid,
+            title: title,
+            cover: coverUrl,
+            score: score,
+            date: date,
+            hasMagnet: hasMagnet,
+            hasSubtitle: hasSubtitle
+          });
+          if (items.length >= CONFIG.pageSize) break;
+        }
+        return items;
+      }
+
+      function parseActorList(html) {
+        var doc = parseHtml(html);
+        if (!doc) return [];
+        var actors = [];
+        var actorBoxes = doc.querySelectorAll(".actor-box");
+        if (actorBoxes.length === 0) {
+          actorBoxes = doc.querySelectorAll("a[href*='/actors/']");
+        }
+        var seen = {};
+        for (var i = 0; i < actorBoxes.length; i++) {
+          var box = actorBoxes[i];
+          var linkEl = box.tagName === "A" ? box : box.querySelector("a[href*='/actors/']");
+          if (!linkEl) continue;
+          var href = linkEl.getAttribute("href");
+          var actorId = href.replace("/actors/", "").replace(/\/$/, "").split("?")[0];
+          if (!actorId || actorId === "censored" || actorId === "uncensored" || actorId === "western" || actorId === "search") continue;
+          if (seen[actorId]) continue;
+          seen[actorId] = true;
+          var nameEl = linkEl.querySelector("strong") || linkEl;
+          var name = cleanText(nameEl.textContent);
+          if (!name) {
+            var titleAttr = linkEl.getAttribute("title");
+            name = titleAttr ? cleanText(titleAttr.split(",")[0]) : actorId;
+          }
+          var imgEl = linkEl.querySelector("img.avatar") || linkEl.querySelector("img");
+          var avatar = imgEl ? absoluteUrl(imgEl.getAttribute("src") || imgEl.getAttribute("data-src") || "") : "";
+          actors.push({ id: actorId, name: name, avatar: avatar });
+        }
+        return actors;
+      }
+
+      function parseDetailPage(doc) {
+        if (!doc) return null;
+        var result = {
+          vid: "",
+          title: "",
+          cover: "",
+          score: "",
+          date: "",
+          magnets: []
+        };
+        var titleEl = doc.querySelector(".video-title, h1, .title");
+        if (titleEl) result.title = cleanText(titleEl.textContent);
+        var imgEl = doc.querySelector(".video-cover img, .cover img, .video-poster img, .movie-poster img, img.img-thumbnail, .panel-block img, img[src*='/covers/'], img[src*='/thumbs/'], img.cover-image");
+        if (imgEl) result.cover = absoluteUrl(imgEl.getAttribute("src") || imgEl.getAttribute("data-src") || "");
+        var scoreEl = doc.querySelector(".score, .star-num");
+        if (scoreEl) result.score = cleanText(scoreEl.textContent);
+        var magnetItems = doc.querySelectorAll(".magnet-item, .magnet-list .item, .panel-block");
+        for (var i = 0; i < magnetItems.length; i++) {
+          var mi = magnetItems[i];
+          var magLink = mi.querySelector("a[href*='magnet:']");
+          if (!magLink) continue;
+          var magnetUrl = magLink.getAttribute("href");
+          if (!magnetUrl) continue;
+          var nameEl = mi.querySelector(".magnet-name, .name, a[href*='magnet:']");
+          var name = cleanText(nameEl ? nameEl.textContent : magnetUrl.substring(0, 80));
+          var sizeEl = mi.querySelector(".magnet-size, .size");
+          var size = sizeEl ? cleanText(sizeEl.textContent) : "";
+          var dateEl = mi.querySelector(".magnet-date, .date");
+          var date = dateEl ? cleanText(dateEl.textContent) : "";
+          result.magnets.push({
+            name: name,
+            url: magnetUrl,
+            size: size,
+            date: date
+          });
+        }
+        if (result.magnets.length === 0) {
+          var allMagLinks = doc.querySelectorAll("a[href*='magnet:']");
+          for (var j = 0; j < allMagLinks.length; j++) {
+            var url = allMagLinks[j].getAttribute("href");
+            if (!url) continue;
+            result.magnets.push({
+              name: url.substring(0, 80),
+              url: url,
+              size: "",
+              date: ""
+            });
+          }
+        }
+        return result;
+      }
+
+      function buildCategoryUrl(catId, filterId, page, query) {
+        var path;
+        if (query) {
+          path = "/search";
+        } else if (catId && catId !== "hot") {
+          path = CATEGORY_URL_MAP[catId] || "/";
+        } else {
+          path = "/";
+        }
+        var params = [];
+        if (query) {
+          params.push("q=" + encodeURIComponent(query));
+        }
+        if (filterId && FILTER_PARAM_MAP[filterId]) {
+          params.push(FILTER_PARAM_MAP[filterId]);
+        }
+        if (page && page > 1) {
+          params.push("page=" + page);
+        }
+        if (params.length > 0) {
+          return SITE_BASE + path + (path.indexOf("?") >= 0 ? "&" : "?") + params.join("&");
+        }
+        return SITE_BASE + path;
+      }
+      function buildDetailUrl(vid) {
+        return SITE_BASE + "/v/" + encodeURIComponent(vid);
+      }
+
+      function fetchWithCache(url, options) {
+        var reqOpts = options || {};
+        if (!reqOpts.headers) reqOpts.headers = {};
+        var fm = sdk();
+
+        if (manualCookie) {
+          reqOpts.headers['Cookie'] = manualCookie;
+        }
+
+        if (fm && fm.req) {
+          reqOpts.credentials = "include";
+          return fm.req(url, reqOpts).then(function (resp) {
+            if (resp && resp.ok) {
+              return resp.body;
+            }
+            throw new Error("fm.req failed: " + (resp ? resp.status : "no response"));
+          });
+        }
+        return fetch(url, reqOpts).then(function (resp) {
+          if (!resp.ok) throw new Error("fetch failed: " + resp.status);
+          return resp.text();
+        });
+      }
+
+      function fetchVideoList(catId, filterId, page, query) {
+        var url = buildCategoryUrl(catId, filterId, page, query);
+        log("fetchVideoList", url);
+        return fetchWithCache(url, {
+          headers: {
+            "Accept": "text/html",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36"
+          }
+        }).then(function (html) {
+          var doc = parseHtml(html);
+          return parseVideoCards(doc);
+        });
+      }
+
+      function fetchActorsPage(subCategory, page, query) {
+        var path;
+        if (query) {
+          path = "/search?f=actor&q=" + encodeURIComponent(query);
+          if (page > 1) path += "&page=" + page;
+        } else {
+          path = ACTOR_SUB_MAP[subCategory] || "/actors";
+          if (page > 1) path += (path.indexOf("?") >= 0 ? "&" : "?") + "page=" + page;
+        }
+        var url = SITE_BASE + path;
+        log("fetchActorsPage", url);
+        return fetchWithCache(url, {
+          headers: {
+            "Accept": "text/html",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36"
+          }
+        }).then(function (html) {
+          return parseActorList(html);
+        });
+      }
+
+      function fetchActorVideos(actorId, page) {
+        var path = "/actors/" + encodeURIComponent(actorId);
+        if (page > 1) path += "?page=" + page;
+        var url = SITE_BASE + path;
+        log("fetchActorVideos", url);
+        return fetchWithCache(url, {
+          headers: {
+            "Accept": "text/html",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36"
+          }
+        }).then(function (html) {
+          var doc = parseHtml(html);
+          return parseVideoCards(doc);
+        });
+      }
+
+      function fetchDetail(vid) {
+        var url = buildDetailUrl(vid);
+        log("fetchDetail", url);
+        return fetchWithCache(url, {
+          headers: {
+            "Accept": "text/html",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36"
+          }
+        }).then(function (html) {
+          var doc = parseHtml(html);
+          return parseDetailPage(doc);
+        });
+      }
+
+      function proxyImage(url) {
+        if (!url) return "";
+        var fm = sdk();
+        if (fm && fm.res) {
+          try {
+            return fm.res(url, { headers: { Referer: SITE_BASE } });
+          } catch (e) {
+            log("fm.res error", e);
+          }
+        }
+        return url;
+      }
+
+      function renderVideoCard(item) {
+        var card = document.createElement("button");
+        card.className = "card";
+        card.setAttribute("data-vid", item.vid);
+        card.setAttribute("data-fm-key", "card-" + item.vid);
+        card.tabIndex = 0;
+        var posterWrap = document.createElement("div");
+        posterWrap.className = "poster-wrap";
+        var poster = document.createElement("img");
+        poster.className = "poster";
+        poster.src = proxyImage(item.cover);
+        poster.alt = item.title;
+        poster.loading = "lazy";
+        posterWrap.appendChild(poster);
+        card.appendChild(posterWrap);
+        if (item.score) {
+          var badge = document.createElement("div");
+          badge.className = "rating-badge";
+          badge.textContent = item.score;
+          card.appendChild(badge);
+        }
+        if (item.hasMagnet) {
+          var magBadge = document.createElement("div");
+          magBadge.className = "magnet-badge";
+          magBadge.textContent = "磁";
+          card.appendChild(magBadge);
+        }
+        var body = document.createElement("div");
+        body.className = "card-body";
+        var title = document.createElement("div");
+        title.className = "card-title";
+        title.textContent = item.title;
+        body.appendChild(title);
+        if (item.date) {
+          var meta = document.createElement("div");
+          meta.className = "card-meta";
+          var dateSpan = document.createElement("span");
+          dateSpan.textContent = item.date;
+          meta.appendChild(dateSpan);
+          body.appendChild(meta);
+        }
+        card.appendChild(body);
+        card.addEventListener("click", function (e) {
+          e.preventDefault();
+          openDetail(item.vid, item.title, item.cover);
+        });
+        card.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openDetail(item.vid, item.title, item.cover);
+          }
+        });
+        return card;
+      }
+
+      function renderVideoGrid(items) {
+        var grid = document.getElementById("videoGrid");
+        grid.className = "media-grid";
+        grid.replaceChildren();
+        if (!items || items.length === 0) {
+          var emptyEl = document.createElement("div");
+          emptyEl.className = "empty";
+          emptyEl.textContent = "暂无数据";
+          emptyEl.style.gridColumn = "1 / -1";
+          grid.appendChild(emptyEl);
+          return;
+        }
+        for (var i = 0; i < items.length; i++) {
+          var card = renderVideoCard(items[i]);
+          grid.appendChild(card);
+        }
+      }
+
+      function renderActorGrid(actors) {
+        var grid = document.getElementById("videoGrid");
+        grid.className = "actor-grid";
+        grid.replaceChildren();
+        if (!actors || actors.length === 0) {
+          var emptyEl = document.createElement("div");
+          emptyEl.className = "empty";
+          emptyEl.textContent = "暂无演员数据";
+          emptyEl.style.gridColumn = "1 / -1";
+          grid.appendChild(emptyEl);
+          return;
+        }
+        for (var i = 0; i < actors.length; i++) {
+          var actor = actors[i];
+          var card = document.createElement("button");
+          card.className = "actor-card";
+          card.setAttribute("data-actor-id", actor.id);
+          card.tabIndex = 0;
+          var avatar = document.createElement("img");
+          avatar.className = "actor-avatar";
+          avatar.src = proxyImage(actor.avatar);
+          avatar.alt = actor.name;
+          avatar.loading = "lazy";
+          card.appendChild(avatar);
+          var name = document.createElement("div");
+          name.className = "actor-name";
+          name.textContent = actor.name;
+          card.appendChild(name);
+          (function(a) {
+            card.addEventListener("click", function(e) {
+              e.preventDefault();
+              state.currentActor = a;
+              state.actorPage = 1;
+              state.viewMode = "actorVideos";
+              loadActorVideosList();
+            });
+          })(actor);
+          grid.appendChild(card);
+        }
+      }
+
+      function renderDetail(data, vid, fallbackCover) {
+        var container = document.getElementById("detailContent");
+        container.replaceChildren();
+        if (!data) {
+          var errEl = document.createElement("div");
+          errEl.className = "empty";
+          errEl.textContent = "加载失败";
+          container.appendChild(errEl);
+          return;
+        }
+        data.vid = vid;
+        var hero = document.createElement("div");
+        hero.className = "detail-hero";
+        var posterDiv = document.createElement("div");
+        posterDiv.className = "detail-poster";
+        var posterImg = document.createElement("img");
+        posterImg.src = proxyImage(data.cover || fallbackCover);
+        posterImg.alt = data.title;
+        posterDiv.appendChild(posterImg);
+        hero.appendChild(posterDiv);
+        var info = document.createElement("div");
+        info.className = "detail-info";
+        var h3 = document.createElement("h3");
+        h3.textContent = data.title || vid;
+        info.appendChild(h3);
+        var metaRow = document.createElement("div");
+        metaRow.className = "meta-row";
+        if (data.score) {
+          var scoreSpan = document.createElement("span");
+          scoreSpan.textContent = "评分 " + data.score;
+          metaRow.appendChild(scoreSpan);
+        }
+        if (data.date) {
+          var dateSpan = document.createElement("span");
+          dateSpan.textContent = data.date;
+          metaRow.appendChild(dateSpan);
+        }
+        var countSpan = document.createElement("span");
+        countSpan.textContent = (data.magnets ? data.magnets.length : 0) + " 条磁链";
+        metaRow.appendChild(countSpan);
+        info.appendChild(metaRow);
+        hero.appendChild(info);
+        container.appendChild(hero);
+        var magnetList = document.createElement("div");
+        magnetList.className = "magnet-list";
+        if (data.magnets && data.magnets.length > 0) {
+          for (var i = 0; i < data.magnets.length; i++) {
+            var mag = data.magnets[i];
+            var item = document.createElement("div");
+            item.className = "magnet-item";
+            var magInfo = document.createElement("div");
+            magInfo.className = "magnet-info";
+            var magName = document.createElement("div");
+            magName.className = "magnet-name";
+            magName.textContent = mag.name;
+            magInfo.appendChild(magName);
+            var magMeta = document.createElement("div");
+            magMeta.className = "magnet-meta";
+            var metaParts = [];
+            if (mag.size) metaParts.push(mag.size);
+            if (mag.date) metaParts.push(mag.date);
+            magMeta.textContent = metaParts.join(" · ");
+            magInfo.appendChild(magMeta);
+            item.appendChild(magInfo);
+            var playBtn = document.createElement("button");
+            playBtn.className = "magnet-play";
+            playBtn.textContent = "App播放";
+            playBtn.setAttribute("data-magnet-url", mag.url);
+            playBtn.tabIndex = 0;
+            playBtn.addEventListener("click", function (url, title) {
+              return function (e) {
+                e.stopPropagation();
+                playMagnet(url, title);
+              };
+            }(mag.url, data.title || vid));
+            item.appendChild(playBtn);
+            magnetList.appendChild(item);
+          }
+        } else {
+          var noMag = document.createElement("div");
+          noMag.className = "empty";
+          noMag.textContent = "暂无磁链";
+          magnetList.appendChild(noMag);
+        }
+        container.appendChild(magnetList);
+      }
+
+      function playMagnet(magnetUrl, title) {
+        var fm = sdk();
+        if (!fm) {
+          toast("请在WebHome App中打开");
+          return;
+        }
+        log("playMagnet", magnetUrl, title);
+        try {
+          fm.pan.play({ type: "magnet", url: magnetUrl, title: title || "" });
+          toast("已推送到播放器");
+        } catch (e) {
+          log("playMagnet error", e);
+          toast("播放失败: " + e.message);
+        }
+      }
+
+      function openDetail(vid, title, fallbackCover) {
+        state.detailVid = vid;
+        state.routeToken++;
+        var token = state.routeToken;
+        history.pushState({ type: "detail", vid: vid }, "", "#detail=" + vid);
+        document.body.classList.add("detail-active");
+        var sheet = document.getElementById("detailSheet");
+        sheet.classList.add("active");
+        sheet.scrollTop = 0;
+        var container = document.getElementById("detailContent");
+        container.replaceChildren();
+        var loading = document.createElement("div");
+        loading.className = "loading";
+        loading.textContent = "加载详情…";
+        container.appendChild(loading);
+        fetchDetail(vid).then(function (data) {
+          if (token !== state.routeToken) return;
+          if (!data || (!data.title && data.magnets.length === 0)) {
+            container.replaceChildren();
+            var err = document.createElement("div");
+            err.className = "empty";
+            err.textContent = "暂无数据，可能需登录后查看";
+            container.appendChild(err);
+            return;
+          }
+          renderDetail(data, vid, fallbackCover);
+        }).catch(function (err) {
+          if (token !== state.routeToken) return;
+          log("fetchDetail error", err);
+          container.replaceChildren();
+          var errEl = document.createElement("div");
+          errEl.className = "empty";
+          errEl.textContent = "加载失败: " + (err.message || "网络错误");
+          container.appendChild(errEl);
+        });
+      }
+
+      function closeDetail() {
+        document.body.classList.remove("detail-active");
+        var sheet = document.getElementById("detailSheet");
+        sheet.classList.remove("active");
+        state.detailVid = null;
+        if (location.hash && location.hash.indexOf("detail=") === 1) {
+          history.replaceState({ type: "home" }, "", "#");
+        }
+      }
+
+      function performActorSearch() {
+        var actorInput = document.getElementById("actorSearchInput");
+        var query = cleanText(actorInput ? actorInput.value : "");
+        if (!query) {
+          state.currentQuery = "";
+          state.currentPage = 1;
+          state.currentActorSub = "recommend";
+          document.getElementById("sectionTitle").textContent = "🎬 女优 - 推荐";
+          loadActorsListData();
+          return;
+        }
+        state.currentQuery = query;
+        state.currentPage = 1;
+        state.currentActorSub = "recommend";
+        state.viewMode = "actors";
+        state.currentCategory = "actors";
+        document.getElementById("sectionTitle").textContent = "女优搜索: " + query;
+        renderCategoryChips();
+        renderFilterChips();
+        loadActorsListData();
+      }
+
+      function loadActorsListData() {
+        if (state.isLoading) return;
+        state.isLoading = true;
+        state.viewMode = "actors";
+        var statusBar = document.getElementById("statusBar");
+        statusBar.textContent = "加载演员列表…";
+        document.getElementById("actorSearchWrap").classList.add("active");
+        document.getElementById("actorBackWrap").style.display = "none";
+        var globalSb = document.querySelector(".search-bar");
+        if (globalSb) globalSb.style.display = "none";
+        var subLabel = "";
+        for (var s = 0; s < ACTOR_SUB_LABELS.length; s++) {
+          if (ACTOR_SUB_LABELS[s].id === state.currentActorSub) {
+            subLabel = ACTOR_SUB_LABELS[s].label;
+            break;
+          }
+        }
+        document.getElementById("sectionTitle").textContent = state.currentQuery ? "女优搜索: " + state.currentQuery : "🎬 女优 - " + subLabel;
+        fetchActorsPage(state.currentActorSub, state.currentPage, state.currentQuery).then(function (actors) {
+          state.isLoading = false;
+          renderActorGrid(actors);
+          var countEl = document.getElementById("sectionCount");
+          countEl.textContent = actors.length + " 位";
+          statusBar.textContent = actors.length === 0 ? "没有结果" : "";
+          var pag = document.getElementById("pagination");
+          pag.replaceChildren();
+          if (actors.length >= CONFIG.pageSize) {
+            var nextBtn = document.createElement("button");
+            nextBtn.className = "btn small";
+            nextBtn.textContent = "下一页";
+            nextBtn.addEventListener("click", function () {
+              state.currentPage++;
+              loadActorsListData();
+              document.getElementById("app").scrollIntoView({ behavior: "smooth" });
+            });
+            pag.appendChild(nextBtn);
+          }
+          if (state.currentPage > 1) {
+            var prevBtn = document.createElement("button");
+            prevBtn.className = "btn small";
+            prevBtn.textContent = "上一页";
+            pag.insertBefore(prevBtn, pag.firstChild);
+            prevBtn.addEventListener("click", function () {
+              state.currentPage = Math.max(1, state.currentPage - 1);
+              loadActorsListData();
+              document.getElementById("app").scrollIntoView({ behavior: "smooth" });
+            });
+          }
+        }).catch(function (err) {
+          state.isLoading = false;
+          log("loadActorsListData error", err);
+          statusBar.textContent = "加载失败，请重试";
+          var grid = document.getElementById("videoGrid");
+          grid.replaceChildren();
+          var errEl = document.createElement("div");
+          errEl.className = "empty";
+          errEl.textContent = "网络错误，请检查连接";
+          errEl.style.gridColumn = "1 / -1";
+          grid.appendChild(errEl);
+        });
+      }
+
+      function loadActorVideosList() {
+        if (state.isLoading || !state.currentActor) return;
+        state.isLoading = true;
+        state.viewMode = "actorVideos";
+        var statusBar = document.getElementById("statusBar");
+        statusBar.textContent = "加载 " + state.currentActor.name + " 的视频…";
+        document.getElementById("sectionTitle").textContent = state.currentActor.name + " 的视频";
+        document.getElementById("actorSearchWrap").classList.remove("active");
+        var backWrap = document.getElementById("actorBackWrap");
+        backWrap.style.display = "block";
+        backWrap.replaceChildren();
+        var backBtn = document.createElement("button");
+        backBtn.className = "detail-back";
+        backBtn.textContent = "← 返回演员列表";
+        backBtn.addEventListener("click", function () {
+          state.currentActor = null;
+          state.actorPage = 1;
+          state.viewMode = "actors";
+          loadActorsListData();
+        });
+        backWrap.appendChild(backBtn);
+        fetchActorVideos(state.currentActor.id, state.actorPage).then(function (items) {
+          state.isLoading = false;
+          renderVideoGrid(items);
+          var countEl = document.getElementById("sectionCount");
+          countEl.textContent = items.length + " 条";
+          statusBar.textContent = items.length === 0 ? "暂无视频" : "";
+          var pag = document.getElementById("pagination");
+          pag.replaceChildren();
+          if (items.length >= CONFIG.pageSize) {
+            var nextBtn = document.createElement("button");
+            nextBtn.className = "btn small";
+            nextBtn.textContent = "下一页";
+            nextBtn.addEventListener("click", function () {
+              state.actorPage++;
+              loadActorVideosList();
+              document.getElementById("app").scrollIntoView({ behavior: "smooth" });
+            });
+            pag.appendChild(nextBtn);
+          }
+          if (state.actorPage > 1) {
+            var prevBtn = document.createElement("button");
+            prevBtn.className = "btn small";
+            prevBtn.textContent = "上一页";
+            pag.insertBefore(prevBtn, pag.firstChild);
+            prevBtn.addEventListener("click", function () {
+              state.actorPage = Math.max(1, state.actorPage - 1);
+              loadActorVideosList();
+              document.getElementById("app").scrollIntoView({ behavior: "smooth" });
+            });
+          }
+        }).catch(function (err) {
+          state.isLoading = false;
+          log("loadActorVideosList error", err);
+          statusBar.textContent = "加载失败，请重试";
+          var grid = document.getElementById("videoGrid");
+          grid.replaceChildren();
+          var errEl = document.createElement("div");
+          errEl.className = "empty";
+          errEl.textContent = "网络错误";
+          errEl.style.gridColumn = "1 / -1";
+          grid.appendChild(errEl);
+        });
+      }
+
+      function loadVideoList() {
+        if (state.viewMode === "actors") {
+          loadActorsListData();
+          return;
+        }
+        if (state.viewMode === "actorVideos") {
+          loadActorVideosList();
+          return;
+        }
+        if (state.isLoading) return;
+        state.isLoading = true;
+        var statusBar = document.getElementById("statusBar");
+        statusBar.textContent = "加载中…";
+        document.getElementById("actorSearchWrap").classList.remove("active");
+        document.getElementById("actorBackWrap").style.display = "none";
+        var globalSb = document.querySelector(".search-bar");
+        if (globalSb) globalSb.style.display = "";
+        fetchVideoList(state.currentCategory, state.currentFilter, state.currentPage, state.currentQuery).then(function (items) {
+          state.isLoading = false;
+          renderVideoGrid(items);
+          var countEl = document.getElementById("sectionCount");
+          countEl.textContent = items.length + " 条";
+          statusBar.textContent = items.length === 0 ? "没有结果" : "";
+          var pag = document.getElementById("pagination");
+          pag.replaceChildren();
+          if (items.length >= CONFIG.pageSize) {
+            var nextBtn = document.createElement("button");
+            nextBtn.className = "btn small";
+            nextBtn.textContent = "下一页";
+            nextBtn.addEventListener("click", function () {
+              state.currentPage++;
+              loadVideoList();
+              document.getElementById("app").scrollIntoView({ behavior: "smooth" });
+            });
+            pag.appendChild(nextBtn);
+          }
+          if (state.currentPage > 1) {
+            var prevBtn = document.createElement("button");
+            prevBtn.className = "btn small";
+            prevBtn.textContent = "上一页";
+            pag.insertBefore(prevBtn, pag.firstChild);
+            prevBtn.addEventListener("click", function () {
+              state.currentPage = Math.max(1, state.currentPage - 1);
+              loadVideoList();
+              document.getElementById("app").scrollIntoView({ behavior: "smooth" });
+            });
+          }
+        }).catch(function (err) {
+          state.isLoading = false;
+          log("loadVideoList error", err);
+          statusBar.textContent = "加载失败，请重试";
+          var grid = document.getElementById("videoGrid");
+          grid.replaceChildren();
+          var errEl = document.createElement("div");
+          errEl.className = "empty";
+          errEl.textContent = "网络错误，请检查连接";
+          errEl.style.gridColumn = "1 / -1";
+          grid.appendChild(errEl);
+        });
+      }
+
+      function renderCategoryChips() {
+        var container = document.getElementById("categoryChips");
+        container.replaceChildren();
+        for (var i = 0; i < CATEGORIES.length; i++) {
+          var cat = CATEGORIES[i];
+          var chip = document.createElement("button");
+          chip.className = "chip" + (cat.id === state.currentCategory ? " active" : "");
+          chip.textContent = cat.label;
+          chip.tabIndex = 0;
+          chip.setAttribute("data-cat", cat.id);
+          chip.setAttribute("data-fm-key", "cat-" + cat.id);
+          (function (catId) {
+            chip.addEventListener("click", function () {
+              state.currentCategory = catId;
+              state.currentPage = 1;
+              state.currentQuery = "";
+              state.currentFilter = "";
+              state.currentActor = null;
+              state.actorPage = 1;
+              document.getElementById("searchInput").value = "";
+              history.replaceState({ type: "home" }, "", "#");
+              if (catId === "actors") {
+                state.viewMode = "actors";
+                state.currentActorSub = "recommend";
+                document.getElementById("actorSearchWrap").classList.add("active");
+                var gsb2 = document.querySelector(".search-bar");
+                if (gsb2) gsb2.style.display = "none";
+                loadActorsListData();
+              } else {
+                state.viewMode = "normal";
+                document.getElementById("actorSearchWrap").classList.remove("active");
+                var gsb3 = document.querySelector(".search-bar");
+                if (gsb3) gsb3.style.display = "";
+                loadVideoList();
+              }
+              renderCategoryChips();
+              renderFilterChips();
+            });
+          })(cat.id);
+          container.appendChild(chip);
+        }
+      }
+
+      function renderFilterChips() {
+        var container = document.getElementById("filterChips");
+        container.replaceChildren();
+        if (state.viewMode === "actors") {
+          for (var i = 0; i < ACTOR_SUB_LABELS.length; i++) {
+            var sub = ACTOR_SUB_LABELS[i];
+            var chip = document.createElement("button");
+            chip.className = "chip" + (sub.id === state.currentActorSub ? " active" : "");
+            chip.textContent = sub.label;
+            chip.tabIndex = 0;
+            chip.setAttribute("data-actor-sub", sub.id);
+            (function (subId) {
+              chip.addEventListener("click", function () {
+                state.currentActorSub = subId;
+                state.currentPage = 1;
+                state.currentQuery = "";
+                document.getElementById("searchInput").value = "";
+                document.getElementById("actorSearchInput").value = "";
+                renderFilterChips();
+                loadActorsListData();
+              });
+            })(sub.id);
+            container.appendChild(chip);
+          }
+          return;
+        }
+        if (state.viewMode === "actorVideos") {
+          return;
+        }
+        for (var i = 0; i < FILTERS.length; i++) {
+          var f = FILTERS[i];
+          var chip = document.createElement("button");
+          chip.className = "chip" + (f.id === state.currentFilter ? " active" : "");
+          chip.textContent = f.label;
+          chip.tabIndex = 0;
+          chip.setAttribute("data-filter", f.id);
+          chip.setAttribute("data-fm-key", "filter-" + f.id);
+          (function (filterId) {
+            chip.addEventListener("click", function () {
+              state.currentFilter = filterId;
+              state.currentPage = 1;
+              renderFilterChips();
+              loadVideoList();
+            });
+          })(f.id);
+          container.appendChild(chip);
+        }
+      }
+
+      function performSearch() {
+        var input = document.getElementById("searchInput");
+        var query = cleanText(input.value);
+        if (!query) {
+          state.currentQuery = "";
+          state.currentPage = 1;
+          if (state.viewMode === "actors") {
+            document.getElementById("sectionTitle").textContent = "🎬 女优";
+            loadActorsListData();
+          } else {
+            state.viewMode = "normal";
+            document.getElementById("sectionTitle").textContent = "热播";
+            loadVideoList();
+          }
+          return;
+        }
+        if (state.viewMode === "actors" || state.currentCategory === "actors") {
+          state.viewMode = "actors";
+          state.currentCategory = "actors";
+          state.currentQuery = query;
+          state.currentPage = 1;
+          state.currentActorSub = "recommend";
+          document.getElementById("sectionTitle").textContent = "女优搜索: " + query;
+          renderCategoryChips();
+          renderFilterChips();
+          loadActorsListData();
+          return;
+        }
+        state.currentQuery = query;
+        state.currentPage = 1;
+        state.currentCategory = "";
+        state.currentFilter = "";
+        state.viewMode = "normal";
+        document.getElementById("sectionTitle").textContent = "搜索: " + query;
+        renderCategoryChips();
+        renderFilterChips();
+        loadVideoList();
+      }
+
+      function setupUI() {
+        renderCategoryChips();
+        renderFilterChips();
+
+        var searchInput = document.getElementById("searchInput");
+        searchInput.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            searchInput.blur();
+            performSearch();
+          }
+        });
+        var searchBtn = document.getElementById("searchBtn");
+        searchBtn.addEventListener("click", function () {
+          performSearch();
+        });
+
+        var actorSearchInput = document.getElementById("actorSearchInput");
+        actorSearchInput.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            actorSearchInput.blur();
+            performActorSearch();
+          }
+        });
+        var actorSearchBtn = document.getElementById("actorSearchBtn");
+        actorSearchBtn.addEventListener("click", function () {
+          performActorSearch();
+        });
+
+        if (state.isTV) {
+          searchInput.setAttribute("readonly", "true");
+          searchInput.addEventListener("focus", function () {
+            searchInput.removeAttribute("readonly");
+          });
+          searchInput.addEventListener("blur", function () {
+            searchInput.setAttribute("readonly", "true");
+          });
+        }
+
+        var detailBack = document.getElementById("detailBack");
+        detailBack.addEventListener("click", function () {
+          closeDetail();
+        });
+
+        window.addEventListener("popstate", function (e) {
+          if (e.state && e.state.type === "detail") {
+            if (!state.detailVid) return;
+          } else {
+            if (document.body.classList.contains("detail-active")) {
+              closeDetail();
+            }
+          }
+        });
+
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape" || e.key === "Backspace") {
+            if (document.body.classList.contains("detail-active")) {
+              e.preventDefault();
+              closeDetail();
+            }
+          }
+        });
+
+        overlay = document.getElementById('cookieOverlay');
+        input = document.getElementById('cookieInput');
+        saveBtn = document.getElementById('cookieSave');
+        clearBtn = document.getElementById('cookieClear');
+        closeBtn = document.getElementById('cookieClose');
+        triggerBtn = document.getElementById('cookieTrigger');
+
+        if (triggerBtn) {
+          triggerBtn.addEventListener('click', openCookieModal);
+        }
+        if (closeBtn) {
+          closeBtn.addEventListener('click', closeCookieModal);
+        }
+        if (overlay) {
+          overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeCookieModal();
+          });
+        }
+        if (saveBtn) {
+          saveBtn.addEventListener('click', function() {
+            var val = input.value.trim();
+            setManualCookie(val);
+            closeCookieModal();
+            toast('Cookie 已保存');
+            loadVideoList();
+          });
+        }
+        if (clearBtn) {
+          clearBtn.addEventListener('click', function() {
+            setManualCookie('');
+            input.value = '';
+            closeCookieModal();
+            toast('Cookie 已清除');
+            loadVideoList();
+          });
+        }
+
+        document.getElementById("sectionTitle").textContent = state.currentQuery ? "搜索: " + state.currentQuery : "热播";
+        loadVideoList();
+      }
+
+      function detectTV() {
+        if (window.fongmiClient && window.fongmiClient.isLeanback) {
+          state.isTV = true;
+          document.documentElement.classList.add("tv-mode");
+        }
+        if (window.innerWidth > 960 && window.innerWidth / window.innerHeight > 1.3) {
+          state.isTV = true;
+          document.documentElement.classList.add("tv-mode");
+        }
+      }
+
+      function init() {
+        detectTV();
+        if (window.fongmiBridge) {
+          state.isApp = true;
+          document.documentElement.classList.add("fm-native");
+          document.documentElement.classList.add("native-phone-app");
+        }
+        waitForSdk(2000).then(function (ready) {
+          state.sdkReady = ready;
+          log("SDK ready:", ready);
+          if (ready && sdk() && sdk().ui && sdk().ui.setChrome) {
+            try {
+              sdk().ui.setChrome({
+                mode: "edge",
+                statusBarStyle: "light",
+                navigationBarStyle: "light",
+                startup: true
+              });
+            } catch (e) {
+              log("setChrome error:", e);
+            }
+          }
+          if (location.hash && location.hash.indexOf("detail=") === 1) {
+            var vidFromHash = location.hash.split("detail=")[1].split("&")[0];
+            if (vidFromHash) {
+              openDetail(decodeURIComponent(vidFromHash), "");
+              return;
+            }
+          }
+          setupUI();
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
